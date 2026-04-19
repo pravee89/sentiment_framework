@@ -204,7 +204,7 @@ def _find_date_column(df: pd.DataFrame) -> str | None:
     if best[0]:
         # Verify it actually parses as dates
         try:
-            pd.to_datetime(df[best[0]].dropna().head(20), infer_datetime_format=True)
+            pd.to_datetime(df[best[0]].dropna().head(20), format="mixed", dayfirst=False)
             return best[0]
         except Exception:
             pass

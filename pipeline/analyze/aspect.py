@@ -26,6 +26,7 @@ from config.settings import (
     ASPECT_NGRAM_RANGE,
     ASPECT_MMR,
     ASPECT_DIVERSITY,
+    ASPECT_MAX_ROWS,
 )
 
 _kw_model: KeyBERT | None = None
@@ -47,6 +48,11 @@ def extract_aspects(texts: list[str], model: KeyBERT | None = None) -> list[list
     """
     Extract keyphrases from each text.
 
+    For large datasets, only runs KeyBERT on a representative sample
+    (ASPECT_MAX_ROWS) and marks unsampled rows with an empty list.
+    This keeps the pipeline fast without losing meaningful insight —
+    aspect aggregation across 300 rows is just as informative as across 5000.
+
     Parameters
     ----------
     texts  : list of clean text strings
@@ -59,10 +65,21 @@ def extract_aspects(texts: list[str], model: KeyBERT | None = None) -> list[list
     if model is None:
         model = load_aspect_model()
 
-    results = []
-    for text in texts:
+    total = len(texts)
+    results = [[] for _ in range(total)]
+
+    # Determine which indices to sample
+    if total <= ASPECT_MAX_ROWS:
+        sample_indices = list(range(total))
+    else:
+        import random
+        random.seed(42)
+        sample_indices = sorted(random.sample(range(total), ASPECT_MAX_ROWS))
+        print(f"[aspect] Dataset has {total} rows — sampling {ASPECT_MAX_ROWS} for aspect extraction.")
+
+    for idx in sample_indices:
+        text = texts[idx]
         if not isinstance(text, str) or not text.strip():
-            results.append([])
             continue
         try:
             keywords = model.extract_keywords(
@@ -73,9 +90,9 @@ def extract_aspects(texts: list[str], model: KeyBERT | None = None) -> list[list
                 use_mmr=ASPECT_MMR,
                 diversity=ASPECT_DIVERSITY,
             )
-            results.append([kw for kw, _ in keywords])
+            results[idx] = [kw for kw, _ in keywords]
         except Exception:
-            results.append([])
+            results[idx] = []
 
     return results
 

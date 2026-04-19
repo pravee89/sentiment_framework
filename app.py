@@ -33,7 +33,9 @@ st.set_page_config(
 
 # ─── Pipeline imports (deferred to avoid slow startup) ────────────────────────
 from pipeline.ingest import load_file, infer_schema, validate_schema, get_column_previews
+from pipeline.preprocess import run_lemmatization
 from pipeline.orchestrator import run_pipeline, compute_stats, generate_executive_summary
+from config.settings import MAX_ROWS_WARNING
 from pipeline.visualize.charts import (
     sentiment_distribution_chart,
     emotion_breakdown_chart,
@@ -50,7 +52,7 @@ from exporters.pdf_exporter import export_pdf
 # ─── Session state helpers ────────────────────────────────────────────────────
 
 def _reset_results():
-    for key in ("df_results", "stats", "summary", "wc_images", "schema_confirmed"):
+    for key in ("df_results", "stats", "summary", "wc_images", "schema_confirmed", "lemmatization_done"):
         st.session_state.pop(key, None)
 
 
@@ -177,6 +179,14 @@ def _tab_upload():
     schema = st.session_state["schema"]
 
     st.success(f"✅ Loaded **{len(df):,} rows** × **{len(df.columns)} columns**")
+
+    if len(df) > MAX_ROWS_WARNING:
+        st.warning(
+            f"⚠️ Large dataset ({len(df):,} rows). "
+            f"Analysis will run on all rows for sentiment/emotion, "
+            f"and sample {MAX_ROWS_WARNING:,} rows for aspect extraction. "
+            f"Expect 3–8 minutes depending on your machine."
+        )
 
     with st.expander("Preview (first 5 rows)", expanded=False):
         st.dataframe(df.head(), use_container_width=True)
@@ -431,6 +441,16 @@ def _tab_wordclouds():
     if not st.session_state.get("schema_confirmed"):
         st.info("Run the analysis first.")
         return
+
+    # ── Lazy lemmatization — only runs when this tab is first opened ──────────
+    if not st.session_state.get("lemmatization_done"):
+        with st.spinner("Generating word clouds (lemmatizing text — one-time, ~30 sec)…"):
+            df_results = st.session_state["df_results"]
+            df_results = run_lemmatization(df_results)
+            st.session_state["df_results"] = df_results
+            wc_images = generate_wordclouds(df_results)
+            st.session_state["wc_images"] = wc_images
+            st.session_state["lemmatization_done"] = True
 
     wc_images = st.session_state["wc_images"]
 

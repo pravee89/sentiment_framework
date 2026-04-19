@@ -19,7 +19,7 @@ import spacy
 from langdetect import detect, DetectorFactory
 from langdetect.lang_detect_exception import LangDetectException
 
-from config.settings import SUPPORTED_LANGUAGES, SPACY_MODEL, MIN_TEXT_LENGTH
+from config.settings import SUPPORTED_LANGUAGES, SPACY_MODEL, MIN_TEXT_LENGTH, LEMMATIZE_ON_DEMAND
 
 # Make langdetect deterministic
 DetectorFactory.seed = 42
@@ -38,19 +38,22 @@ def _get_nlp():
 
 # ─── Public API ────────────────────────────────────────────────────────────────
 
-def preprocess(df: pd.DataFrame, text_col: str) -> pd.DataFrame:
+def preprocess(df: pd.DataFrame, text_col: str, lemmatize: bool = False) -> pd.DataFrame:
     """
-    Run the full preprocessing pipeline on a DataFrame.
+    Run the preprocessing pipeline on a DataFrame.
 
     Steps
     -----
     1. Detect language
     2. Filter to supported languages
     3. Light-clean text  → clean_text
-    4. Lemmatize + POS-filter → lemmatized_text
+    4. (Optional) Lemmatize + POS-filter → lemmatized_text
     5. Drop rows with too-short text
 
-    Returns a copy of the DataFrame with new columns added.
+    Parameters
+    ----------
+    lemmatize : if True, run spaCy lemmatization (slow — only needed for word clouds).
+                Defaults to False so the main pipeline runs fast.
     """
     df = df.copy()
 
@@ -70,12 +73,32 @@ def preprocess(df: pd.DataFrame, text_col: str) -> pd.DataFrame:
     word_counts = df["clean_text"].str.split().str.len()
     df = df[word_counts >= MIN_TEXT_LENGTH].copy()
 
-    print("[preprocess] Lemmatizing (this may take a moment)…")
-    nlp = _get_nlp()
-    df["lemmatized_text"] = _batch_lemmatize(df["clean_text"].tolist(), nlp)
+    if lemmatize or not LEMMATIZE_ON_DEMAND:
+        print("[preprocess] Lemmatizing…")
+        nlp = _get_nlp()
+        df["lemmatized_text"] = _batch_lemmatize(df["clean_text"].tolist(), nlp)
+    else:
+        # Placeholder — will be filled on demand when word cloud tab is opened
+        df["lemmatized_text"] = None
 
     df = df.reset_index(drop=True)
     print(f"[preprocess] Done. {len(df)} rows ready for analysis.")
+    return df
+
+
+def run_lemmatization(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Run lemmatization on demand (called lazily when word cloud tab is opened).
+    Only processes rows that haven't been lemmatized yet.
+    """
+    if "lemmatized_text" in df.columns and df["lemmatized_text"].notna().all():
+        return df   # already done
+
+    print("[preprocess] Running on-demand lemmatization for word clouds…")
+    nlp = _get_nlp()
+    df = df.copy()
+    df["lemmatized_text"] = _batch_lemmatize(df["clean_text"].tolist(), nlp)
+    print("[preprocess] Lemmatization complete.")
     return df
 
 

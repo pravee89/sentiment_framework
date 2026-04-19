@@ -22,7 +22,7 @@ from pipeline.analyze.sentiment import load_sentiment_model, run_sentiment
 from pipeline.analyze.emotion import load_emotion_model, run_emotion
 from pipeline.analyze.aspect import load_aspect_model, extract_aspects, aggregate_aspect_sentiment
 from pipeline.analyze.summarizer import generate_summary
-from config.settings import EMOTION_LABELS, SENTIMENT_LABELS
+from config.settings import EMOTION_LABELS, SENTIMENT_LABELS, MAX_ROWS_WARNING
 
 
 # ─── Main pipeline function ───────────────────────────────────────────────────
@@ -57,9 +57,13 @@ def run_pipeline(
 
     text_col = schema["text_col"]
 
-    # ── Stage 1: Preprocess ───────────────────────────────────────────────────
+    # ── Row cap warning ───────────────────────────────────────────────────────
+    if len(df) > MAX_ROWS_WARNING:
+        print(f"[pipeline] Large dataset: {len(df)} rows. Consider sampling for faster results.")
+
+    # ── Stage 1: Preprocess (lemmatization deferred to word cloud tab) ────────
     _update("Preprocessing text…", 0.05)
-    df = preprocess(df, text_col)
+    df = preprocess(df, text_col, lemmatize=False)
 
     if df.empty:
         raise ValueError(
@@ -106,9 +110,10 @@ def run_pipeline(
     date_col = schema.get("date_col")
     if date_col and date_col in df.columns:
         try:
-            df[date_col] = pd.to_datetime(df[date_col], infer_datetime_format=True)
-        except Exception:
-            pass  # leave as-is if parsing fails
+            df[date_col] = pd.to_datetime(df[date_col], format="mixed", dayfirst=False)
+            print(f"[pipeline] Date column '{date_col}' parsed successfully.")
+        except Exception as e:
+            print(f"[pipeline] Date parsing failed for '{date_col}': {e}. Trend chart will be unavailable.")
 
     _update("Pipeline complete.", 1.0)
     return df

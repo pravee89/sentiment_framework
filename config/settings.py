@@ -20,6 +20,11 @@ ASPECT_TOP_N        = 5         # keywords per document
 ASPECT_NGRAM_RANGE  = (1, 3)    # unigrams → trigrams
 ASPECT_MMR          = True      # Maximal Marginal Relevance for diversity
 ASPECT_DIVERSITY    = 0.5       # 0 = repetitive, 1 = maximally diverse
+ASPECT_MAX_ROWS     = 300       # max rows to run KeyBERT on (sampled if larger)
+
+# ─── Performance ───────────────────────────────────────────────────────────────
+MAX_ROWS_WARNING    = 5000      # warn user if dataset exceeds this
+LEMMATIZE_ON_DEMAND = True      # skip lemmatization during pipeline; run lazily for word clouds
 
 # ─── Word cloud ────────────────────────────────────────────────────────────────
 WC_WIDTH            = 900

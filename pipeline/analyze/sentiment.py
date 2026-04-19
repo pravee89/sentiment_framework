@@ -33,7 +33,7 @@ def load_sentiment_model():
         _model_pipeline = hf_pipeline(
             "text-classification",
             model=SENTIMENT_MODEL,
-            return_all_scores=True,
+            top_k=None,           # replaces deprecated return_all_scores=True
             truncation=True,
             max_length=MAX_TOKEN_LENGTH,
             device=device,
@@ -70,7 +70,16 @@ def run_sentiment(texts: list[str], model=None) -> list[dict]:
     safe_texts = [t if isinstance(t, str) and t.strip() else "no content" for t in texts]
 
     results = []
-    for batch_output in _batched_inference(model, safe_texts, BATCH_SIZE):
+    for i in range(0, len(safe_texts), BATCH_SIZE):
+        batch = safe_texts[i: i + BATCH_SIZE]
+        batch_output = model(batch)
+
+        # Normalize output structure — transformers versions differ:
+        # Older: list of dicts (single text)  → [[dict, dict, dict]]
+        # Newer: list of lists of dicts        → [[dict, dict, dict], ...]
+        if batch_output and isinstance(batch_output[0], dict):
+            batch_output = [batch_output]
+
         for item_scores in batch_output:
             scores = _normalise_scores(item_scores)
             label = max(scores, key=scores.get)
@@ -97,13 +106,6 @@ def sentiment_score_to_label(score: float) -> str:
 
 
 # ─── Internal helpers ──────────────────────────────────────────────────────────
-
-def _batched_inference(model, texts: list[str], batch_size: int):
-    """Yield model outputs in batches (list of per-text score dicts)."""
-    for i in range(0, len(texts), batch_size):
-        batch = texts[i: i + batch_size]
-        yield model(batch)
-
 
 def _normalise_scores(item_scores: list[dict]) -> dict:
     """

@@ -33,7 +33,7 @@ def load_emotion_model():
         _model_pipeline = hf_pipeline(
             "text-classification",
             model=EMOTION_MODEL,
-            return_all_scores=True,
+            top_k=None,           # replaces deprecated return_all_scores=True
             truncation=True,
             max_length=MAX_TOKEN_LENGTH,
             device=device,
@@ -67,10 +67,16 @@ def run_emotion(texts: list[str], model=None) -> list[dict]:
     safe_texts = [t if isinstance(t, str) and t.strip() else "no content" for t in texts]
 
     results = []
-    for batch_output in _batched_inference(model, safe_texts, BATCH_SIZE):
+    for i in range(0, len(safe_texts), BATCH_SIZE):
+        batch = safe_texts[i: i + BATCH_SIZE]
+        batch_output = model(batch)
+
+        # Normalize output structure — same fix as sentiment.py
+        if batch_output and isinstance(batch_output[0], dict):
+            batch_output = [batch_output]
+
         for item_scores in batch_output:
             scores = {entry["label"].lower(): round(entry["score"], 4) for entry in item_scores}
-            # Fill any missing emotion labels with 0
             for label in EMOTION_LABELS:
                 scores.setdefault(label, 0.0)
             dominant = max(EMOTION_LABELS, key=lambda l: scores[l])
@@ -99,8 +105,3 @@ def get_emotion_distribution(emotion_results: list[dict]) -> dict:
     return {label: round(totals[label] / n, 4) for label in EMOTION_LABELS}
 
 
-# ─── Internal helpers ──────────────────────────────────────────────────────────
-
-def _batched_inference(model, texts: list[str], batch_size: int):
-    for i in range(0, len(texts), batch_size):
-        yield model(texts[i: i + batch_size])

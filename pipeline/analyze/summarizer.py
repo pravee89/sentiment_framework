@@ -121,8 +121,4 @@ def _fallback_summary(stats: dict) -> str:
             f"The main areas of concern were: {', '.join(neg_asp[:3])}. "
             "These represent the clearest opportunities for improvement."
         )
-    lines.append(
-        "Note: set the ANTHROPIC_API_KEY environment variable to enable "
-        "AI-generated summaries with tailored recommendations."
-    )
     return " ".join(lines)

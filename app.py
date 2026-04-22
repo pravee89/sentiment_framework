@@ -118,15 +118,15 @@ def main():
     _init_state()
     _inject_css()
 
-    st.title("💬 Sentiment Analysis Framework")
+    st.title("Sentiment Analysis Framework")
     st.caption("Upload any feedback dataset — the system handles the rest.")
 
     tabs = st.tabs([
-        "📁 Upload & Configure",
-        "📊 Overview",
-        "🔍 Deep Dive",
-        "☁️ Word Clouds",
-        "💾 Export",
+        "Upload & Configure",
+        "Overview",
+        "Deep Dive",
+        "Word Clouds",
+        "Export",
     ])
 
     with tabs[0]:
@@ -205,24 +205,24 @@ def _tab_upload():
     col1, col2 = st.columns(2)
     with col1:
         text_col = st.selectbox(
-            "📝 Text / feedback column *",
+            "Text / feedback column *",
             str_cols,
             index=_col_index(schema.get("text_col"), str_cols),
             help="The column containing the free-text feedback",
         )
         date_col_raw = st.selectbox(
-            "📅 Date column (optional)",
+            "Date column (optional)",
             all_cols,
             index=_col_index(schema.get("date_col"), all_cols),
         )
     with col2:
         score_col_raw = st.selectbox(
-            "⭐ Rating / score column (optional)",
+            "Rating / score column (optional)",
             all_cols,
             index=_col_index(schema.get("score_col"), all_cols),
         )
         cat_col_raw = st.selectbox(
-            "🏷️ Category column (optional)",
+            "Category column (optional)",
             all_cols,
             index=_col_index(schema.get("category_col"), all_cols),
         )
@@ -348,11 +348,11 @@ def _tab_overview():
     st.divider()
     asp_col1, asp_col2 = st.columns(2)
     with asp_col1:
-        st.markdown("**🟢 What customers love**")
+        st.markdown('<span style="color:#2ecc71; font-weight:700;">What customers love</span>', unsafe_allow_html=True)
         for asp in stats.get("top_pos_aspects", [])[:5]:
             st.markdown(f"&nbsp;&nbsp;• {asp}")
     with asp_col2:
-        st.markdown("**🔴 What customers complain about**")
+        st.markdown('<span style="color:#e74c3c; font-weight:700;">What customers complain about</span>', unsafe_allow_html=True)
         for asp in stats.get("top_neg_aspects", [])[:5]:
             st.markdown(f"&nbsp;&nbsp;• {asp}")
 
@@ -461,11 +461,12 @@ def _tab_wordclouds():
     )
 
     cols = st.columns(3)
-    labels = [("positive", "🟢 Positive"), ("neutral", "🔵 Neutral"), ("negative", "🔴 Negative")]
+    wc_colors = {"positive": "#2ecc71", "neutral": "#3498db", "negative": "#e74c3c"}
+    labels = [("positive", "Positive"), ("neutral", "Neutral"), ("negative", "Negative")]
 
     for col, (label, title) in zip(cols, labels):
         with col:
-            st.markdown(f"**{title}**")
+            st.markdown(f'<span style="color:{wc_colors[label]}; font-weight:700;">{title}</span>', unsafe_allow_html=True)
             img = wc_images.get(label)
             if img:
                 st.image(img, use_column_width=True)
@@ -491,7 +492,7 @@ def _tab_export():
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.markdown("#### 📄 CSV")
+        st.markdown("#### CSV")
         st.caption("Full results with all analysis columns")
         csv_data = df_results.drop(columns=["lemmatized_text"], errors="ignore").to_csv(index=False).encode()
         st.download_button(
@@ -503,7 +504,7 @@ def _tab_export():
         )
 
     with col2:
-        st.markdown("#### 📊 Excel")
+        st.markdown("#### Excel")
         st.caption("Multi-sheet workbook: Summary, Raw Results, Aspects, Quotes")
         if st.button("Generate Excel", use_container_width=True):
             with st.spinner("Building Excel workbook…"):
@@ -517,7 +518,7 @@ def _tab_export():
             )
 
     with col3:
-        st.markdown("#### 📋 PDF Report")
+        st.markdown("#### PDF Report")
         st.caption("Stakeholder-ready report with charts and quotes")
         if st.button("Generate PDF", use_container_width=True):
             with st.spinner("Building PDF report…"):
